@@ -1,7 +1,6 @@
 # Name: Makefile
-# Author: <insert your name here>
-# Copyright: <insert your copyright message here>
-# License: <insert your license reference here>
+# Author: Patrick Walsh
+# License: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 # This is a prototype Makefile. Modify it according to your needs.
 # You should at least check the settings for
@@ -17,11 +16,11 @@
 #                   default_serial = "avrdoper"
 # FUSES ........ Parameters for avrdude to flash the fuses appropriately.
 
-DEVICE     = atmega8
+DEVICE     = atmega328p
 CLOCK      = 8000000
 PROGRAMMER = #-c stk500v2 -P avrdoper
 OBJECTS    = main.o
-FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x24:m
+FUSES      = -U efuse:w:0xf8:m -U hfuse:w:0xda:m -U lfuse:w:0xff:m
 
 # ATMega8 fuse bits used above (fuse bits for other devices are different!):
 # Example for 8 MHz internal oscillator
@@ -74,7 +73,7 @@ fuse:
 	$(AVRDUDE) $(FUSES)
 
 # Xcode uses the Makefile targets "", "clean" and "install"
-install: flash fuse
+install: flash
 
 # if you use a bootloader, change the command below appropriately:
 load: all
