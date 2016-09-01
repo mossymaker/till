@@ -13,10 +13,13 @@ int main(void)
   DDRB = 0b00100000;
 
   while(1) {
-    PORTB = 0b00100000; // Turn on PB5
-    _delay_ms(750);
-
-    PORTB = 0b00000000; // Turn off PB5
+    PORTB ^= (1 << PB5); // Toggle on PB5
+    _delay_ms(100);
+    PORTB ^= (1 << PB5);
+    _delay_ms(100);
+    PORTB ^= (1 << PB5);
+    _delay_ms(100);
+    PORTB ^= (1 << PB5);
     _delay_ms(750);
   }
 }
