@@ -19,7 +19,10 @@
 DEVICE     = atmega328p
 CLOCK      = 8000000
 PROGRAMMER = #-c stk500v2 -P avrdoper
-OBJECTS    = main.o
+LIBDIR     = ../lib
+SOURCES    = $(wildcard *.c *.cpp $(LIBDIR)/*.c $(LIBDIR)/*.cpp)
+OBJECTS    = $(SOURCES:.c=.o)
+HEADERS    = $(SOURCES:.c=.h)
 FUSES      = -U efuse:w:0xf8:m -U hfuse:w:0xda:m -U lfuse:w:0xff:m
 
 # ATMega8 fuse bits used above (fuse bits for other devices are different!):
@@ -48,7 +51,7 @@ FUSES      = -U efuse:w:0xf8:m -U hfuse:w:0xda:m -U lfuse:w:0xff:m
 # Tune the lines below only if you know what you are doing:
 
 AVRDUDE = avrdude $(PROGRAMMER) -p $(DEVICE)
-COMPILE = avr-gcc -Wall -Os -DF_CPU=$(CLOCK) -mmcu=$(DEVICE)
+COMPILE = avr-gcc -Wall -Os -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) -I. -I$(LIBDIR)
 
 # symbolic targets:
 all:	main.hex
