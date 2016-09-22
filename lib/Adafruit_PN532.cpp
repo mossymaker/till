@@ -42,25 +42,16 @@
              uint8_t mifareultralight_ReadPage (uint8_t page, uint8_t * buffer)
 */
 /**************************************************************************/
-#if ARDUINO >= 100
- #include "Arduino.h"
-#else
- #include "WProgram.h"
-#endif
 
-#include <Wire.h>
-#if defined(__AVR__) || defined(__i386__) || defined(ARDUINO_ARCH_SAMD) || defined(ESP8266) || defined(ARDUINO_ARCH_STM32)
- #define WIRE Wire
-#else // Arduino Due
- #define WIRE Wire1
-#endif
-
-#include <SPI.h>
-
+#include <stdint.h>
+#include <util/delay.h>
+#include "Arduino.h"
+#include "pinDefines.h"
+#include "SPI.h"
 #include "Adafruit_PN532.h"
 
-byte pn532ack[] = {0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00};
-byte pn532response_firmwarevers[] = {0x00, 0xFF, 0x06, 0xFA, 0xD5, 0x03};
+uint8_t pn532ack[] = {0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00};
+uint8_t pn532response_firmwarevers[] = {0x00, 0xFF, 0x06, 0xFA, 0xD5, 0x03};
 
 // Uncomment these lines to enable debug output for PN532(SPI) and/or MIFARE related code
 // #define PN532DEBUG
@@ -78,89 +69,11 @@ byte pn532response_firmwarevers[] = {0x00, 0xFF, 0x06, 0xFA, 0xD5, 0x03};
 #endif
 
 #define PN532_PACKBUFFSIZ 64
-byte pn532_packetbuffer[PN532_PACKBUFFSIZ];
+uint8_t pn532_packetbuffer[PN532_PACKBUFFSIZ];
 
 #ifndef _BV
     #define _BV(bit) (1<<(bit))
 #endif
-
-/**************************************************************************/
-/*!
-    @brief  Sends a single byte via I2C
-
-    @param  x    The byte to send
-*/
-/**************************************************************************/
-static inline void i2c_send(uint8_t x)
-{
-  #if ARDUINO >= 100
-    WIRE.write((uint8_t)x);
-  #else
-    WIRE.send(x);
-  #endif
-}
-
-/**************************************************************************/
-/*!
-    @brief  Reads a single byte via I2C
-*/
-/**************************************************************************/
-static inline uint8_t i2c_recv(void)
-{
-  #if ARDUINO >= 100
-    return WIRE.read();
-  #else
-    return WIRE.receive();
-  #endif
-}
-
-/**************************************************************************/
-/*!
-    @brief  Instantiates a new PN532 class using software SPI.
-
-    @param  clk       SPI clock pin (SCK)
-    @param  miso      SPI MISO pin
-    @param  mosi      SPI MOSI pin
-    @param  ss        SPI chip select pin (CS/SSEL)
-*/
-/**************************************************************************/
-Adafruit_PN532::Adafruit_PN532(uint8_t clk, uint8_t miso, uint8_t mosi, uint8_t ss):
-  _clk(clk),
-  _miso(miso),
-  _mosi(mosi),
-  _ss(ss),
-  _irq(0),
-  _reset(0),
-  _usingSPI(true),
-  _hardwareSPI(false)
-{
-  pinMode(_ss, OUTPUT);
-  pinMode(_clk, OUTPUT);
-  pinMode(_mosi, OUTPUT);
-  pinMode(_miso, INPUT);
-}
-
-/**************************************************************************/
-/*!
-    @brief  Instantiates a new PN532 class using I2C.
-
-    @param  irq       Location of the IRQ pin
-    @param  reset     Location of the RSTPD_N pin
-*/
-/**************************************************************************/
-Adafruit_PN532::Adafruit_PN532(uint8_t irq, uint8_t reset):
-  _clk(0),
-  _miso(0),
-  _mosi(0),
-  _ss(0),
-  _irq(irq),
-  _reset(reset),
-  _usingSPI(false),
-  _hardwareSPI(false)
-{
-  pinMode(_irq, INPUT);
-  pinMode(_reset, OUTPUT);
-}
 
 /**************************************************************************/
 /*!
@@ -179,7 +92,7 @@ Adafruit_PN532::Adafruit_PN532(uint8_t ss):
   _usingSPI(true),
   _hardwareSPI(true)
 {
-  pinMode(_ss, OUTPUT);
+  SPI_SS_DDR |= (1 << SPI_SS);
 }
 
 /**************************************************************************/
@@ -188,46 +101,34 @@ Adafruit_PN532::Adafruit_PN532(uint8_t ss):
 */
 /**************************************************************************/
 void Adafruit_PN532::begin() {
-  if (_usingSPI) {
-    // SPI initialization
-    if (_hardwareSPI) {
-      SPI.begin();
 
-      #ifdef SPI_HAS_TRANSACTION
-        SPI.beginTransaction(PN532_SPI_SETTING);
-      #else
-        SPI.setDataMode(SPI_MODE0);
-        SPI.setBitOrder(LSBFIRST);
-        SPI.setClockDivider(PN532_SPI_CLOCKDIV);
-      #endif
-    }
-    digitalWrite(_ss, LOW);
+  // SPI initialization
+  if (_hardwareSPI) {
+    SPI.begin();
 
-    delay(1000);
-
-    // not exactly sure why but we have to send a dummy command to get synced up
-    pn532_packetbuffer[0] = PN532_COMMAND_GETFIRMWAREVERSION;
-    sendCommandCheckAck(pn532_packetbuffer, 1);
-
-    // ignore response!
-
-    digitalWrite(_ss, HIGH);
     #ifdef SPI_HAS_TRANSACTION
-      if (_hardwareSPI) SPI.endTransaction();
+      SPI.beginTransaction(PN532_SPI_SETTING);
+    #else
+      SPI.setDataMode(SPI_MODE0);
+      SPI.setBitOrder(LSBFIRST);
+      SPI.setClockDivider(PN532_SPI_CLOCKDIV);
     #endif
   }
-  else {
-    // I2C initialization.
-    WIRE.begin();
 
-    // Reset the PN532
-    digitalWrite(_reset, HIGH);
-    digitalWrite(_reset, LOW);
-    delay(400);
-    digitalWrite(_reset, HIGH);
-    delay(10);  // Small delay required before taking other actions after reset.
-                // See timing diagram on page 209 of the datasheet, section 12.23.
-  }
+  SPI_SS_PORT &= ~(1 << SPI_SS);
+
+  _delay_ms(1000);
+
+  // not exactly sure why but we have to send a dummy command to get synced up
+  pn532_packetbuffer[0] = PN532_COMMAND_GETFIRMWAREVERSION;
+  sendCommandCheckAck(pn532_packetbuffer, 1);
+
+  // ignore response!
+
+  SPI_SS_PORT |= (1 << SPI_SS);
+  #ifdef SPI_HAS_TRANSACTION
+    if (_hardwareSPI) SPI.endTransaction();
+  #endif
 }
 
 /**************************************************************************/
@@ -238,7 +139,7 @@ void Adafruit_PN532::begin() {
     @param  numBytes  Data length in bytes
 */
 /**************************************************************************/
-void Adafruit_PN532::PrintHex(const byte * data, const uint32_t numBytes)
+void Adafruit_PN532::PrintHex(const uint8_t * data, const uint32_t numBytes)
 {
   uint32_t szPos;
   for (szPos=0; szPos < numBytes; szPos++)
@@ -267,7 +168,7 @@ void Adafruit_PN532::PrintHex(const byte * data, const uint32_t numBytes)
     @param  numBytes  Data length in bytes
 */
 /**************************************************************************/
-void Adafruit_PN532::PrintHexChar(const byte * data, const uint32_t numBytes)
+void Adafruit_PN532::PrintHexChar(const uint8_t * data, const uint32_t numBytes)
 {
   uint32_t szPos;
   for (szPos=0; szPos < numBytes; szPos++)
@@ -370,12 +271,9 @@ bool Adafruit_PN532::sendCommandCheckAck(uint8_t *cmd, uint8_t cmdlen, uint16_t 
     return false;
   }
 
-  // For SPI only wait for the chip to be ready again.
-  // This is unnecessary with I2C.
-  if (_usingSPI) {
-    if (!waitready(timeout)) {
-      return false;
-    }
+  // Wait for the chip to be ready again.
+  if (!waitready(timeout)) {
+    return false;
   }
 
   return true; // ack'd command
@@ -430,7 +328,7 @@ bool Adafruit_PN532::writeGPIO(uint8_t pinstate) {
     PN532DEBUGPRINT.println();
   #endif
 
-  int offset = _usingSPI ? 5 : 6;
+  int offset = 5;
   return  (pn532_packetbuffer[offset] == 0x0F);
 }
 
@@ -569,19 +467,6 @@ bool Adafruit_PN532::readPassiveTargetID(uint8_t cardbaudrate, uint8_t * uid, ui
       PN532DEBUGPRINT.println(F("No card(s) read"));
     #endif
     return 0x0;  // no cards read
-  }
-
-  // wait for a card to enter the field (only possible with I2C)
-  if (!_usingSPI) {
-    #ifdef PN532DEBUG
-      PN532DEBUGPRINT.println(F("Waiting for IRQ (indicates card presence)"));
-    #endif
-    if (!waitready(timeout)) {
-      #ifdef PN532DEBUG
-        PN532DEBUGPRINT.println(F("IRQ Timeout"));
-      #endif
-      return 0x0;
-    }
   }
 
   // read data packet
@@ -1508,30 +1393,24 @@ bool Adafruit_PN532::readack() {
 */
 /**************************************************************************/
 bool Adafruit_PN532::isready() {
-  if (_usingSPI) {
-    // SPI read status and check if ready.
-    #ifdef SPI_HAS_TRANSACTION
-      if (_hardwareSPI) SPI.beginTransaction(PN532_SPI_SETTING);
-    #endif
-    digitalWrite(_ss, LOW);
-    delay(2);
-    spi_write(PN532_SPI_STATREAD);
-    // read byte
-    uint8_t x = spi_read();
+  
+  // SPI read status and check if ready.
+  #ifdef SPI_HAS_TRANSACTION
+    if (_hardwareSPI) SPI.beginTransaction(PN532_SPI_SETTING);
+  #endif
+  digitalWrite(_ss, LOW);
+  delay(2);
+  spi_write(PN532_SPI_STATREAD);
+  // read byte
+  uint8_t x = spi_read();
 
-    digitalWrite(_ss, HIGH);
-    #ifdef SPI_HAS_TRANSACTION
-      if (_hardwareSPI) SPI.endTransaction();
-    #endif
+  digitalWrite(_ss, HIGH);
+  #ifdef SPI_HAS_TRANSACTION
+    if (_hardwareSPI) SPI.endTransaction();
+  #endif
 
-    // Check if status is ready.
-    return x == PN532_SPI_READY;
-  }
-  else {
-    // I2C check if status is ready by IRQ line being pulled low.
-    uint8_t x = digitalRead(_irq);
-    return x == 0;
-  }
+  // Check if status is ready.
+  return x == PN532_SPI_READY;
 }
 
 /**************************************************************************/
@@ -1565,64 +1444,35 @@ bool Adafruit_PN532::waitready(uint16_t timeout) {
 */
 /**************************************************************************/
 void Adafruit_PN532::readdata(uint8_t* buff, uint8_t n) {
-  if (_usingSPI) {
-    // SPI write.
-    #ifdef SPI_HAS_TRANSACTION
-      if (_hardwareSPI) SPI.beginTransaction(PN532_SPI_SETTING);
-    #endif
-    digitalWrite(_ss, LOW);
-    delay(2);
-    spi_write(PN532_SPI_DATAREAD);
+  
+  // SPI write.
+  #ifdef SPI_HAS_TRANSACTION
+    if (_hardwareSPI) SPI.beginTransaction(PN532_SPI_SETTING);
+  #endif
+  digitalWrite(_ss, LOW);
+  delay(2);
+  spi_write(PN532_SPI_DATAREAD);
 
+  #ifdef PN532DEBUG
+    PN532DEBUGPRINT.print(F("Reading: "));
+  #endif
+  for (uint8_t i=0; i<n; i++) {
+    delay(1);
+    buff[i] = spi_read();
     #ifdef PN532DEBUG
-      PN532DEBUGPRINT.print(F("Reading: "));
-    #endif
-    for (uint8_t i=0; i<n; i++) {
-      delay(1);
-      buff[i] = spi_read();
-      #ifdef PN532DEBUG
-        PN532DEBUGPRINT.print(F(" 0x"));
-        PN532DEBUGPRINT.print(buff[i], HEX);
-      #endif
-    }
-
-    #ifdef PN532DEBUG
-      PN532DEBUGPRINT.println();
-    #endif
-
-    digitalWrite(_ss, HIGH);
-    #ifdef SPI_HAS_TRANSACTION
-      if (_hardwareSPI) SPI.endTransaction();
+      PN532DEBUGPRINT.print(F(" 0x"));
+      PN532DEBUGPRINT.print(buff[i], HEX);
     #endif
   }
-  else {
-    // I2C write.
-    uint16_t timer = 0;
 
-    delay(2);
+  #ifdef PN532DEBUG
+    PN532DEBUGPRINT.println();
+  #endif
 
-    #ifdef PN532DEBUG
-      PN532DEBUGPRINT.print(F("Reading: "));
-    #endif
-    // Start read (n+1 to take into account leading 0x01 with I2C)
-    WIRE.requestFrom((uint8_t)PN532_I2C_ADDRESS, (uint8_t)(n+2));
-    // Discard the leading 0x01
-    i2c_recv();
-    for (uint8_t i=0; i<n; i++) {
-      delay(1);
-      buff[i] = i2c_recv();
-      #ifdef PN532DEBUG
-        PN532DEBUGPRINT.print(F(" 0x"));
-        PN532DEBUGPRINT.print(buff[i], HEX);
-      #endif
-    }
-    // Discard trailing 0x00 0x00
-    // i2c_recv();
-
-    #ifdef PN532DEBUG
-      PN532DEBUGPRINT.println();
-    #endif
-  }
+  digitalWrite(_ss, HIGH);
+  #ifdef SPI_HAS_TRANSACTION
+    if (_hardwareSPI) SPI.endTransaction();
+  #endif
 }
 
 /**************************************************************************/
@@ -1635,119 +1485,63 @@ void Adafruit_PN532::readdata(uint8_t* buff, uint8_t n) {
 */
 /**************************************************************************/
 void Adafruit_PN532::writecommand(uint8_t* cmd, uint8_t cmdlen) {
-  if (_usingSPI) {
-    // SPI command write.
-    uint8_t checksum;
+  
+  // SPI command write.
+  uint8_t checksum;
 
-    cmdlen++;
+  cmdlen++;
 
+  #ifdef PN532DEBUG
+    PN532DEBUGPRINT.print(F("\nSending: "));
+  #endif
+
+  #ifdef SPI_HAS_TRANSACTION
+    if (_hardwareSPI) SPI.beginTransaction(PN532_SPI_SETTING);
+  #endif
+  digitalWrite(_ss, LOW);
+  delay(2);     // or whatever the delay is for waking up the board
+  spi_write(PN532_SPI_DATAWRITE);
+
+  checksum = PN532_PREAMBLE + PN532_PREAMBLE + PN532_STARTCODE2;
+  spi_write(PN532_PREAMBLE);
+  spi_write(PN532_PREAMBLE);
+  spi_write(PN532_STARTCODE2);
+
+  spi_write(cmdlen);
+  spi_write(~cmdlen + 1);
+
+  spi_write(PN532_HOSTTOPN532);
+  checksum += PN532_HOSTTOPN532;
+
+  #ifdef PN532DEBUG
+    PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_PREAMBLE, HEX);
+    PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_PREAMBLE, HEX);
+    PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_STARTCODE2, HEX);
+    PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(cmdlen, HEX);
+    PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(~cmdlen + 1, HEX);
+    PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_HOSTTOPN532, HEX);
+  #endif
+
+  for (uint8_t i=0; i<cmdlen-1; i++) {
+    spi_write(cmd[i]);
+    checksum += cmd[i];
     #ifdef PN532DEBUG
-      PN532DEBUGPRINT.print(F("\nSending: "));
-    #endif
-
-    #ifdef SPI_HAS_TRANSACTION
-      if (_hardwareSPI) SPI.beginTransaction(PN532_SPI_SETTING);
-    #endif
-    digitalWrite(_ss, LOW);
-    delay(2);     // or whatever the delay is for waking up the board
-    spi_write(PN532_SPI_DATAWRITE);
-
-    checksum = PN532_PREAMBLE + PN532_PREAMBLE + PN532_STARTCODE2;
-    spi_write(PN532_PREAMBLE);
-    spi_write(PN532_PREAMBLE);
-    spi_write(PN532_STARTCODE2);
-
-    spi_write(cmdlen);
-    spi_write(~cmdlen + 1);
-
-    spi_write(PN532_HOSTTOPN532);
-    checksum += PN532_HOSTTOPN532;
-
-    #ifdef PN532DEBUG
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_PREAMBLE, HEX);
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_PREAMBLE, HEX);
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_STARTCODE2, HEX);
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(cmdlen, HEX);
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(~cmdlen + 1, HEX);
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_HOSTTOPN532, HEX);
-    #endif
-
-    for (uint8_t i=0; i<cmdlen-1; i++) {
-      spi_write(cmd[i]);
-      checksum += cmd[i];
-      #ifdef PN532DEBUG
-        PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(cmd[i], HEX);
-      #endif
-    }
-
-    spi_write(~checksum);
-    spi_write(PN532_POSTAMBLE);
-    digitalWrite(_ss, HIGH);
-    #ifdef SPI_HAS_TRANSACTION
-      if (_hardwareSPI) SPI.endTransaction();
-    #endif
-
-    #ifdef PN532DEBUG
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(~checksum, HEX);
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_POSTAMBLE, HEX);
-      PN532DEBUGPRINT.println();
+      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(cmd[i], HEX);
     #endif
   }
-  else {
-    // I2C command write.
-    uint8_t checksum;
 
-    cmdlen++;
+  spi_write(~checksum);
+  spi_write(PN532_POSTAMBLE);
+  digitalWrite(_ss, HIGH);
+  #ifdef SPI_HAS_TRANSACTION
+    if (_hardwareSPI) SPI.endTransaction();
+  #endif
 
-    #ifdef PN532DEBUG
-      PN532DEBUGPRINT.print(F("\nSending: "));
-    #endif
-
-    delay(2);     // or whatever the delay is for waking up the board
-
-    // I2C START
-    WIRE.beginTransmission(PN532_I2C_ADDRESS);
-    checksum = PN532_PREAMBLE + PN532_PREAMBLE + PN532_STARTCODE2;
-    i2c_send(PN532_PREAMBLE);
-    i2c_send(PN532_PREAMBLE);
-    i2c_send(PN532_STARTCODE2);
-
-    i2c_send(cmdlen);
-    i2c_send(~cmdlen + 1);
-
-    i2c_send(PN532_HOSTTOPN532);
-    checksum += PN532_HOSTTOPN532;
-
-    #ifdef PN532DEBUG
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_PREAMBLE, HEX);
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_PREAMBLE, HEX);
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_STARTCODE2, HEX);
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(cmdlen, HEX);
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(~cmdlen + 1, HEX);
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_HOSTTOPN532, HEX);
-    #endif
-
-    for (uint8_t i=0; i<cmdlen-1; i++) {
-      i2c_send(cmd[i]);
-      checksum += cmd[i];
-      #ifdef PN532DEBUG
-        PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(cmd[i], HEX);
-      #endif
-    }
-
-    i2c_send(~checksum);
-    i2c_send(PN532_POSTAMBLE);
-
-    // I2C STOP
-    WIRE.endTransmission();
-
-    #ifdef PN532DEBUG
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(~checksum, HEX);
-      PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_POSTAMBLE, HEX);
-      PN532DEBUGPRINT.println();
-    #endif
-
-  }
+  #ifdef PN532DEBUG
+    PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(~checksum, HEX);
+    PN532DEBUGPRINT.print(F(" 0x")); PN532DEBUGPRINT.print(PN532_POSTAMBLE, HEX);
+    PN532DEBUGPRINT.println();
+  #endif
 }
 /************** low level SPI */
 

@@ -30,12 +30,6 @@
 #ifndef ADAFRUIT_PN532_H
 #define ADAFRUIT_PN532_H
 
-#if ARDUINO >= 100
- #include "Arduino.h"
-#else
- #include "WProgram.h"
-#endif
-
 #define PN532_PREAMBLE                      (0x00)
 #define PN532_STARTCODE1                    (0x00)
 #define PN532_STARTCODE2                    (0xFF)
@@ -155,8 +149,6 @@
 
 class Adafruit_PN532{
  public:
-  Adafruit_PN532(uint8_t clk, uint8_t miso, uint8_t mosi, uint8_t ss);  // Software SPI
-  Adafruit_PN532(uint8_t irq, uint8_t reset);  // Hardware I2C
   Adafruit_PN532(uint8_t ss);  // Hardware SPI
   void begin(void);
   
@@ -192,8 +184,8 @@ class Adafruit_PN532{
   uint8_t ntag2xx_WriteNDEFURI (uint8_t uriIdentifier, char * url, uint8_t dataLen);
   
   // Help functions to display formatted text
-  static void PrintHex(const byte * data, const uint32_t numBytes);
-  static void PrintHexChar(const byte * pbtData, const uint32_t numBytes);
+  static void PrintHex(const uint8_t * data, const uint32_t numBytes);
+  static void PrintHexChar(const uint8_t * pbtData, const uint32_t numBytes);
 
  private:
   uint8_t _ss, _clk, _mosi, _miso;
