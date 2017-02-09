@@ -51,14 +51,14 @@ to prevent this:
 ## Resources
 
 - Arduino Pro Mini
--- [Datasheet - Atmel](http://www.atmel.com/Images/Atmel-42735-8-bit-AVR-Microcontroller-ATmega328-328P_datasheet.pdf)
--- [Fuse Calculator](http://www.engbedded.com/fusecalc/)
--- [Graphical Datasheet - SparkFun](https://cdn.sparkfun.com/datasheets/Dev/Arduino/Boards/ProMini8MHzv1.pdf)
--- [ICE User Guide - Atmel](http://www.atmel.com/Images/Atmel-42330-Atmel-ICE_UserGuide.pdf)
+  - [Datasheet - Atmel](http://www.atmel.com/Images/Atmel-42735-8-bit-AVR-Microcontroller-ATmega328-328P_datasheet.pdf)
+  - [Fuse Calculator](http://www.engbedded.com/fusecalc/)
+  - [Graphical Datasheet - SparkFun](https://cdn.sparkfun.com/datasheets/Dev/Arduino/Boards/ProMini8MHzv1.pdf)
+  - [ICE User Guide - Atmel](http://www.atmel.com/Images/Atmel-42330-Atmel-ICE_UserGuide.pdf)
 - AVR
--- [Beyond the Arduino - Elliot Williams](http://www.littlehacks.org/static/files/beyond_the_arduino.pdf)
+  - [Beyond the Arduino - Elliot Williams](http://www.littlehacks.org/static/files/beyond_the_arduino.pdf)
 - EMV
--- [A Guide to EMV Level 2 Contactless - Level2Kernel](https://www.level2kernel.com/emv-level-2-contactless-information-guide.html)
--- [EMV - Gemalto](http://www.gemalto.com/emv/)
--- [EMV Contactless Spec](http://www.emvco.com/specifications.aspx?id=21)
--- [NFC Resources - Smart Card Alliance](http://www.smartcardalliance.org/smart-cards-applications-nfc/)
+  - [A Guide to EMV Level 2 Contactless - Level2Kernel](https://www.level2kernel.com/emv-level-2-contactless-information-guide.html)
+  - [EMV - Gemalto](http://www.gemalto.com/emv/)
+  - [EMV Contactless Spec](http://www.emvco.com/specifications.aspx?id=21)
+  - [NFC Resources - Smart Card Alliance](http://www.smartcardalliance.org/smart-cards-applications-nfc/)
